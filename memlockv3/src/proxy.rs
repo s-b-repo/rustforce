@@ -1,9 +1,11 @@
 use std::collections::HashSet;
-use std::env;
 use rand::prelude::*;
+use anyhow::Result;
+use reqwest::{Client, Proxy};
+use rand::thread_rng;
 
 /// Parses a single proxy line.
-/// If no schema is present, defaults to "http://"
+/// If no scheme is present, defaults to "http://"
 pub fn parse_proxy_line(line: &str) -> String {
     let trimmed = line.trim().to_lowercase();
     if trimmed.starts_with("http://")
@@ -17,21 +19,25 @@ pub fn parse_proxy_line(line: &str) -> String {
     }
 }
 
-/// Picks a random proxy not in tried_proxies.
-/// If all proxies were tried, clears tried_proxies automatically and reuses the list.
+/// Picks a random untried proxy.
+/// If all proxies have been tried, it clears the tried list automatically.
 pub fn pick_random_untried_proxy(
     proxy_list: &[String],
     tried_proxies: &mut HashSet<String>,
 ) -> Option<String> {
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
 
-    // If all proxies are tried, reset
+    if proxy_list.is_empty() {
+        return None;
+    }
+
     if tried_proxies.len() >= proxy_list.len() {
-        println!("[*] All proxies tried. Resetting tried list...");
+        println!("[*] All proxies have been tried. Resetting tried proxies...");
         tried_proxies.clear();
     }
 
-    let untried: Vec<&String> = proxy_list.iter()
+    let untried: Vec<&String> = proxy_list
+        .iter()
         .filter(|p| !tried_proxies.contains(*p))
         .collect();
 
@@ -42,14 +48,18 @@ pub fn pick_random_untried_proxy(
     }
 }
 
-/// Sets ALL_PROXY so all protocols (HTTP, HTTPS, SOCKS4, SOCKS5) use the proxy.
-pub fn set_all_proxy_env(proxy: &str) {
-    env::set_var("ALL_PROXY", proxy);
+/// Builds a reqwest::Client that uses the provided proxy for HTTP/HTTPS.
+/// Works for proxy types: socks4, socks5, http, https.
+pub fn build_proxy_client(proxy_url: &str) -> Result<Client> {
+    Ok(Client::builder()
+        .proxy(Proxy::all(proxy_url)?)
+        .danger_accept_invalid_certs(true) // Accept invalid SSL certs to avoid random hangs
+        .build()?)
 }
 
-/// Clears all proxy-related environment variables.
-pub fn clear_proxy_env_vars() {
-    env::remove_var("ALL_PROXY");
-    env::remove_var("HTTP_PROXY");
-    env::remove_var("HTTPS_PROXY");
+/// Builds a direct reqwest::Client with no proxy.
+pub fn build_direct_client() -> Result<Client> {
+    Ok(Client::builder()
+        .danger_accept_invalid_certs(true)
+        .build()?)
 }
