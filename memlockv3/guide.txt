@@ -1,0 +1,115 @@
+==============================
+🚀 BRUTEFORCER USAGE GUIDE
+==============================
+
+This tool performs concurrent brute-force login attempts on
+FTP, SSH, and Telnet services for a list of IP addresses.
+
+-------------
+REQUIREMENTS
+-------------
+
+1. Rust installed (https://rust-lang.org)
+2. Internet (to download dependencies)
+3. A folder containing the following files:
+
+   - main.rs
+   - ftp.rs
+   - ssh.rs
+   - telnet.rs
+
+   And the following input files in the **same folder**:
+
+   - usernames.txt      ← List of usernames to try
+   - passwords.txt      ← List of passwords to try
+   - targets.txt        ← List of IP addresses or hostnames
+
+-----------
+DEPENDENCIES
+-----------
+
+Install Rust dependencies (only once):
+
+    cargo build
+
+The project uses:
+- async-ftp
+- ssh2
+- telnet
+- tokio
+- anyhow
+- futures
+
+(These will be downloaded automatically during `cargo build`)
+
+-------------
+INPUT FORMATS
+-------------
+
+• usernames.txt:
+    admin
+    root
+    user
+    test
+
+• passwords.txt:
+    123456
+    password
+    toor
+    admin123
+
+• targets.txt:
+    192.168.0.1
+    10.0.0.5
+    ftp.example.com
+
+Make sure **each line** contains only one item.
+
+-------------
+RUNNING
+-------------
+
+Run the tool from the same folder:
+
+    cargo run
+
+--------------
+RESULTS
+--------------
+
+Results are saved into:
+
+1. `valid_credentials.txt`
+    → Full log of every valid username:password found
+
+2. `success.txt`
+    → Highlighted summary of successful logins in this format:
+
+       [+] FTP Success: 192.168.0.1 => admin:123456
+
+--------------
+PERFORMANCE
+--------------
+
+This tool is optimized for speed:
+
+✔ Concurrent scanning of all IPs
+✔ FTP, SSH, and Telnet scanned simultaneously
+✔ Max 20 login attempts at once per target (safe flood limit)
+✔ Each protocol runs tasks in parallel with controlled limits
+
+--------------
+TIPS
+--------------
+
+✅ Use SecLists for better wordlists:
+
+   Download from: https://github.com/danielmiessler/SecLists
+
+   Example:
+   - usernames.txt → SecLists/Usernames/Default-Credentials
+   - passwords.txt → SecLists/Passwords/Common-Credentials
+
+✅ Use VPNs or network isolation when testing external IPs.
+
+✅ Only test systems you have permission to scan.
