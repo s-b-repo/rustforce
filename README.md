@@ -48,6 +48,8 @@ RustBruteSuite/
 
 ### Prerequisites
 
+
+- pip install requests
 - Rust (>= 1.70)
 - Python 3.10+ (for Python utilities)
 
