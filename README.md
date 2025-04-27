@@ -37,14 +37,9 @@ RustBruteSuite/
 │   ├── proxy.rs      # Proxy management
 │   ├── events.rs     # Event system (Success/Fail/Timeout)
 │   └── main.rs       # Entry point
-│
-├── python_tools/
-│   ├── generate_ipv4.py    # Generate all public IPv4 addresses
-│   ├── proxy_downloader.py # Download, test, and save proxies
-│
 ├── Cargo.toml    # Rust project manifest
 ├── README.md     # You are here
-└── LICENSE       # (Choose a license like MIT/Apache2.0)
+└── LICENSE    
 ```
 
 ---
@@ -58,7 +53,7 @@ RustBruteSuite/
 
 ### Install Rust (if you don't have it)
 
-```bash
+```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
@@ -68,20 +63,20 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 Clone the repository:
 
-```bash
+```
 git clone https://github.com/yourusername/RustBruteSuite.git
 cd RustBruteSuite
 ```
 
 Build the Rust project:
 
-```bash
+```
 cargo build --release
 ```
 
 Run it:
 
-```bash
+```
 cargo run --release
 ```
 
@@ -93,7 +88,7 @@ You will be prompted for:
 
 ### Example:
 
-```bash
+```
 cargo run --release
 ```
 > [*] Loading targets from `ips.txt`
@@ -109,7 +104,7 @@ cargo run --release
 
 Generates **every possible public IPv4 address** (avoiding private/reserved ranges) and saves to a file.
 
-```bash
+```
 cd python_tools
 python3 generate_ipv4.py
 ```
@@ -123,7 +118,7 @@ python3 generate_ipv4.py
 
 Downloads proxies from multiple sources, tests them against real websites (e.g., DuckDuckGo and Bing), and saves working ones.
 
-```bash
+```
 cd python_tools
 python3 proxy_downloader.py
 ```
