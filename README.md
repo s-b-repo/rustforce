@@ -142,7 +142,7 @@ Downloads proxies from multiple sources, tests them against real websites (e.g.,
 
 ## 📜 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the GPL License](LICENSE).
 
 ---
 
