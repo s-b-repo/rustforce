@@ -23,5 +23,8 @@ futures = "0.3.31"
 
 rand = { version = "0.9.0", features = ["std"] }
 
-suppaftp   = { version = "6.2.0", features = ["async"] }
-
+suppaftp = { version = "6.2.0", features = ["async-native-tls"] }
+async-std = { version = "1.13.1", features = ["attributes"] }
+once_cell = "1.21.3"
+socks = "0.3.4"
+tokio-socks = "0.5.2"
