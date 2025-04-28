@@ -1,0 +1,13 @@
+1, python3 pubgen for all your ips
+2. cargo build
+3 cargo run
+
+config in main.rs in src at top of main.rs
+// === Config ===
+const MAX_PORT_SCAN_CONCURRENCY: usize = 5; // ← New: limit parallel port scans
+const PORTS: &[u16] = &[21, 990, 2121, 8021, 2221];
+const TIMEOUT_SECS: u64 = 2;
+const GLOBAL_CONCURRENCY: usize = 10;
+const STOP_ON_SUCCESS: bool = true;
+const SAVE_RESULTS: bool = true;
+const OUTPUT_FILE: &str = "ftp_results.txt";
