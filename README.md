@@ -9,17 +9,13 @@
 - 🚀 **Rust-based Brute-Forcer**:
   - FTP, SSH, and Telnet brute-force modules.
   - Highly concurrent (async-based using `tokio`).
-  - Proxy support (HTTP/SOCKS4/SOCKS5).
   - Auto-retry and timeout handling.
   - Optimized for huge wordlists.
-  - Supports IPv4 and proxies simultaneously.
+  - Supports IPv4.
 
 - 🐍 **Python Utilities**:
   - **IP Generator**: Generates and saves all possible public IPv4 addresses.
-  - **Proxy Manager**:
-    - Downloads proxies from multiple sources.
-    - Tests proxies against real targets (e.g., DuckDuckGo, Bing).
-    - Saves working proxies into a clean, ready-to-use format.
+
 
 - 📦 **Organized Output**:
   - Save successful brute-force results automatically.
@@ -86,7 +82,6 @@ You will be prompted for:
 - Target file (list of IPs)
 - Username wordlist
 - Password wordlist
-- Proxy file (optional)
 
 ### Example:
 
@@ -95,7 +90,6 @@ cargo run --release
 ```
 > [*] Loading targets from `ips.txt`
 > [*] Using `usernames.txt` and `passwords.txt`
-> [*] Loaded 5000 proxies from `proxies.txt`
 > [*] Starting FTP, SSH, and Telnet brute-forcing...
 
 ---
@@ -121,25 +115,9 @@ python3 generate_ipv4.py
 Downloads proxies from multiple sources, tests them against real websites (e.g., DuckDuckGo and Bing), and saves working ones.
 
 ```
-cd python_tools
-python3 proxy_downloader.py
-```
-
-- Output: `proxies.txt`
-- Proxy format: `socks5://IP:PORT`, `http://IP:PORT`, etc.
 
 ---
 
-## ⚙️ Configuration
-
-Edit `src/main.rs` to adjust:
-
-| Option | Description | Default |
-|:------:|:------------|:-------:|
-| `MAX_CONCURRENT_IPS` | How many IPs to attack in parallel | 10 |
-| `CONNECT_TIMEOUT_SECS` | Connection timeout in seconds | 4 |
-| `RETRY_DELAY_MS` | Retry delay between attempts | 100 |
-| `MAX_RETRIES` | Max retries per IP/protocol | 2 |
 
 ---
 
