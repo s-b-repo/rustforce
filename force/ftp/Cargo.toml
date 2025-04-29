@@ -16,7 +16,7 @@ rand = "0.9.0"
 clap = { version = "4.5.35", features = ["derive"] }
 
 # Async runtime for networking
-tokio = { version = "1.44.2", features = ["macros", "rt-multi-thread", "process"] }
+tokio = { version = "1.44.2", features = ["fs", "io-util", "rt-multi-thread", "macros", "time", "process"] }
 
 # Easier error handling
 anyhow = "1.0.97"
